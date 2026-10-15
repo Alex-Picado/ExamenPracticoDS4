@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../widgets/atender_turno_dialog.dart';
+import '../widgets/lista_turnos.dart';
 import '../models/turno.dart';
 import '../services/tiempo_real_service.dart';
 import '../services/turnos_service.dart';
@@ -299,68 +300,67 @@ class _TurnosScreenState extends State<TurnosScreen> {
     super.dispose();
   }
 
-  /// Construye la página según el resultado de la consulta HTTP.
+  /// Construye las categorías y conserva la pestaña durante las actualizaciones.
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestión de turnos'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: _construirBotonLlamar(),
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Gestión de turnos'),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _construirBotonLlamar(),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: _construirBotonAtender(),
+            ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Pendientes'),
+              Tab(text: 'Llamados'),
+              Tab(text: 'Atendidos'),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: _construirBotonAtender(),
-          ),
-        ],
-      ),
-      floatingActionButton: _construirBotonRegistro(),
-      body: FutureBuilder<List<Turno>>(
-        future: _consulta,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        ),
+        floatingActionButton: _construirBotonRegistro(),
+        body: FutureBuilder<List<Turno>>(
+          future: _consulta,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('No se pudieron cargar los turnos.'),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: _cargarTurnos,
-                    child: const Text('Reintentar'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final turnos = snapshot.data ?? <Turno>[];
-
-          if (turnos.isEmpty) {
-            return const Center(child: Text('No hay turnos registrados.'));
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80),
-            itemCount: turnos.length,
-
-            itemBuilder: (context, index) {
-              final turno = turnos[index];
-
-              return ListTile(
-                leading: const Icon(Icons.confirmation_number),
-                title: Text('Turno ${turno.id}'),
-                subtitle: Text('Estado: ${turno.estado}'),
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('No se pudieron cargar los turnos.'),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: _cargarTurnos,
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
               );
-            },
-          );
-        },
+            }
+
+            final turnos = snapshot.data ?? <Turno>[];
+
+            return TabBarView(
+              children: [
+                ListaTurnos(turnos: turnos, estado: 'pendiente'),
+                ListaTurnos(turnos: turnos, estado: 'llamado'),
+                ListaTurnos(turnos: turnos, estado: 'atendido'),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

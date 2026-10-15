@@ -45,6 +45,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Gestión de turnos'), findsOneWidget);
-    expect(find.text('No hay turnos registrados.'), findsOneWidget);
+    expect(find.text('No hay turnos pendientes.'), findsOneWidget);
   });
 }
