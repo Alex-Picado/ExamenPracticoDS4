@@ -17,17 +17,31 @@ class _TurnosServiceVacio extends TurnosService {
   }
 }
 
-/// Sustituye el WebSocket durante la prueba de la pantalla.
+/// Simula un canal abierto y una respuesta de sincronización.
 class _TiempoRealFalso extends TiempoRealService {
-  /// Proporciona un flujo vacío sin abrir conexiones.
+  StreamController<Map<String, dynamic>>? _eventos;
+
+  /// Crea un flujo controlado sin abrir conexiones reales.
   @override
   Stream<Map<String, dynamic>> conectar() {
-    return const Stream<Map<String, dynamic>>.empty();
+    final eventos = StreamController<Map<String, dynamic>>();
+    _eventos = eventos;
+    return eventos.stream;
   }
 
-  /// Simula la solicitud de sincronización sin enviar mensajes.
+  /// Simula el aviso que provoca la consulta de turnos.
   @override
-  Future<void> sincronizar() async {}
+  Future<void> sincronizar() async {
+    _eventos?.add({'tipo': 'turnos_actualizados'});
+  }
+
+  /// Libera el flujo utilizado durante la prueba.
+  @override
+  Future<void> cerrar() async {
+    final eventos = _eventos;
+    _eventos = null;
+    await eventos?.close();
+  }
 }
 
 /// Comprueba la presentación de una lista de turnos vacía.
@@ -46,5 +60,8 @@ void main() {
 
     expect(find.text('Gestión de turnos'), findsOneWidget);
     expect(find.text('No hay turnos pendientes.'), findsOneWidget);
+    // Retira la pantalla y permite terminar la liberación de recursos.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
   });
 }

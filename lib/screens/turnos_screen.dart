@@ -32,6 +32,9 @@ class _TurnosScreenState extends State<TurnosScreen> {
   bool _atendiendoTurno = false;
   late final TiempoRealService _tiempoReal;
   StreamSubscription<Map<String, dynamic>>? _suscripcion;
+  Timer? _temporizadorReconexion;
+  bool _conectando = false;
+  bool _conectado = false;
 
   /// Inicializa los servicios, consulta los turnos y abre el WebSocket.
   @override
@@ -46,30 +49,99 @@ class _TurnosScreenState extends State<TurnosScreen> {
     unawaited(_conectarTiempoReal());
   }
 
-  /// Escucha los avisos del servidor y solicita la sincronización inicial.
+  /// Abre el canal y solicita el estado actual al servidor.
   ///
-  /// Cada aviso de cambios provoca una consulta HTTP de los turnos.
+  /// Libera la conexión anterior y evita intentos simultáneos.
   Future<void> _conectarTiempoReal() async {
+    if (!mounted || _conectando) {
+      return;
+    }
+
+    _conectando = true;
+    _temporizadorReconexion?.cancel();
+    _temporizadorReconexion = null;
+
+    _actualizarConexion(false);
+
     try {
+      await _suscripcion?.cancel();
+      _suscripcion = null;
+
+      await _tiempoReal.cerrar();
+
+      if (!mounted) {
+        return;
+      }
+
       _suscripcion = _tiempoReal.conectar().listen(
         (evento) {
           if (evento['tipo'] == 'turnos_actualizados') {
+            _actualizarConexion(true);
             _cargarTurnos();
           }
         },
         onError: (Object error) {
           debugPrint('Error de WebSocket: $error');
+          _programarReconexion();
         },
-        onDone: () {
-          debugPrint('Conexión WebSocket cerrada.');
-        },
+        onDone: _programarReconexion,
         cancelOnError: true,
       );
 
       await _tiempoReal.sincronizar();
     } catch (error) {
       debugPrint('No se pudo conectar el WebSocket: $error');
+      _programarReconexion();
+    } finally {
+      _conectando = false;
     }
+  }
+
+  /// Programa un único reintento después de perder la conexión.
+  void _programarReconexion() {
+    if (!mounted) {
+      return;
+    }
+
+    _actualizarConexion(false);
+
+    if (_temporizadorReconexion != null) {
+      return;
+    }
+
+    _temporizadorReconexion = Timer(const Duration(seconds: 2), () {
+      _temporizadorReconexion = null;
+      unawaited(_conectarTiempoReal());
+    });
+  }
+
+  /// Actualiza la disponibilidad del canal mientras la pantalla siga abierta.
+  void _actualizarConexion(bool conectado) {
+    if (!mounted || _conectado == conectado) {
+      return;
+    }
+
+    setState(() {
+      _conectado = conectado;
+    });
+  }
+
+  /// Describe el estado de conexión para mostrarlo en la página.
+  String _textoConexion() {
+    if (_conectado) {
+      return 'Tiempo real conectado';
+    }
+
+    return 'Sin conexión. Reintentando...';
+  }
+
+  /// Habilita una acción únicamente cuando el canal está disponible.
+  VoidCallback? _accionConectada(VoidCallback accion) {
+    if (!_conectado) {
+      return null;
+    }
+
+    return accion;
   }
 
   /// Actualiza la consulta mientras la pantalla siga abierta.
@@ -240,7 +312,7 @@ class _TurnosScreenState extends State<TurnosScreen> {
     }
 
     return OutlinedButton.icon(
-      onPressed: _abrirFormularioAtencion,
+      onPressed: _accionConectada(_abrirFormularioAtencion),
       icon: const Icon(Icons.check_circle_outline),
       label: const Text('Atender turno'),
     );
@@ -267,7 +339,7 @@ class _TurnosScreenState extends State<TurnosScreen> {
     }
 
     return FilledButton.icon(
-      onPressed: _llamarSiguiente,
+      onPressed: _accionConectada(_llamarSiguiente),
       icon: const Icon(Icons.campaign),
       label: const Text('Llamar siguiente'),
     );
@@ -284,15 +356,17 @@ class _TurnosScreenState extends State<TurnosScreen> {
     }
 
     return FloatingActionButton.extended(
-      onPressed: _registrarTurno,
+      onPressed: _accionConectada(_registrarTurno),
       icon: const Icon(Icons.add),
       label: const Text('Registrar turno'),
     );
   }
 
-  /// Libera la suscripción, el canal WebSocket y el cliente HTTP.
+  /// Libera el temporizador, la suscripción y los servicios de la pantalla.
   @override
   void dispose() {
+    _temporizadorReconexion?.cancel();
+
     unawaited(_suscripcion?.cancel());
     unawaited(_tiempoReal.cerrar());
 
@@ -307,7 +381,14 @@ class _TurnosScreenState extends State<TurnosScreen> {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Gestión de turnos'),
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Gestión de turnos'),
+              Text(_textoConexion(), style: const TextStyle(fontSize: 12)),
+            ],
+          ),
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 8),
