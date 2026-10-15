@@ -1,3 +1,8 @@
+/**
+ * Comprueba manualmente la conexión y los eventos WebSocket.
+ * Envía una solicitud de sincronización al conectar.
+ * Permanece escuchando hasta detenerlo con Ctrl+C.
+ */
 const WebSocket = require('ws');
 
 const socket = new WebSocket('ws://localhost:3000/ws');

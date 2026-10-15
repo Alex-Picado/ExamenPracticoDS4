@@ -21,6 +21,7 @@ const wss = new WebSocketServer({
   maxPayload: 4096,
 });
 
+/** Envía un evento JSON a un cliente conectado y gestiona fallos de envío. */
 function enviarEvento(cliente, evento) {
   if (cliente.readyState !== WebSocket.OPEN) {
     return;
@@ -37,12 +38,15 @@ function enviarEvento(cliente, evento) {
   }
 }
 
+/** Avisa a todos los clientes conectados que deben consultar los turnos. */
 function notificarCambios() {
   for (const cliente of wss.clients) {
     enviarEvento(cliente, { tipo: 'turnos_actualizados' });
   }
 }
 
+
+/** Recibe una conexión WebSocket y atiende sus solicitudes de sincronización. */
 wss.on('connection', (cliente) => {
   cliente.on('error', (error) => {
     console.error('Error de WebSocket:', error.message);
@@ -66,6 +70,7 @@ wss.on('connection', (cliente) => {
   });
 });
 
+/** Devuelve todos los turnos ordenados por su identificador. */
 app.get('/api/turnos', async (req, res) => {
   try {
     const [turnos] = await pool.execute(
@@ -81,6 +86,7 @@ app.get('/api/turnos', async (req, res) => {
   }
 });
 
+/** Registra un turno pendiente y notifica el cambio después de guardarlo. */
 app.post('/api/turnos', async (req, res) => {
   try {
     const [resultado] = await pool.execute(
@@ -103,6 +109,7 @@ app.post('/api/turnos', async (req, res) => {
   }
 });
 
+/** Valida la transición y actualiza únicamente si coincide el estado anterior. */
 app.patch('/api/turnos/:id', async (req, res) => {
   const id = Number(req.params.id);
   const estado = req.body?.estado;
@@ -162,6 +169,7 @@ app.patch('/api/turnos/:id', async (req, res) => {
   }
 });
 
+/** Selecciona y bloquea el primer pendiente dentro de una transacción. */
 app.post('/api/turnos/siguiente', async (req, res) => {
   let conexion;
 
@@ -201,6 +209,7 @@ app.post('/api/turnos/siguiente', async (req, res) => {
       [id]
     );
 
+    // Confirma el cambio antes de notificar a los navegadores.
     await conexion.commit();
 
     notificarCambios();
@@ -228,6 +237,7 @@ app.post('/api/turnos/siguiente', async (req, res) => {
   }
 });
 
+/** Inicia el servidor local que comparte HTTP y WebSocket. */
 server.listen(3000, '127.0.0.1', () => {
   console.log('API: http://localhost:3000');
   console.log('WebSocket: ws://localhost:3000/ws');

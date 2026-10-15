@@ -24,6 +24,7 @@ class TurnosScreen extends StatefulWidget {
   State<TurnosScreen> createState() => _TurnosScreenState();
 }
 
+/// Mantiene las consultas, operaciones y conexión en tiempo real de la pantalla.
 class _TurnosScreenState extends State<TurnosScreen> {
   late final TurnosService _servicio;
   late Future<List<Turno>> _consulta;

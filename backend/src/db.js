@@ -6,6 +6,7 @@ require('dotenv').config({
 
 const mysql = require('mysql2/promise');
 
+/** Mantiene conexiones reutilizables a MySQL con la configuración privada. */
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT || 3306),

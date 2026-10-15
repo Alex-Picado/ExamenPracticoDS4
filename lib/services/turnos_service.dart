@@ -5,9 +5,11 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/turno.dart';
 
+/// Consulta y modifica turnos mediante la API REST.
 class TurnosService {
   final http.Client _cliente = http.Client();
 
+  /// Consulta la lista completa y convierte cada registro al modelo Turno.
   Future<List<Turno>> listarTurnos() async {
     final url = Uri.parse('${ApiConfig.baseUrl}/api/turnos');
 
@@ -29,6 +31,7 @@ class TurnosService {
     return turnos;
   }
 
+  /// Solicita registrar un turno cuyo número y estado asigna el servidor.
   Future<void> crearTurno() async {
     final url = Uri.parse('${ApiConfig.baseUrl}/api/turnos');
 
@@ -90,6 +93,7 @@ class TurnosService {
     return true;
   }
 
+  /// Libera el cliente HTTP cuando deja de utilizarse el servicio.
   void cerrar() {
     _cliente.close();
   }

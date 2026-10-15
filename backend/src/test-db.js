@@ -1,5 +1,10 @@
 const pool = require('./db');
 
+
+/**
+ * Consulta los turnos para comprobar el acceso a MySQL.
+ * Libera las conexiones al terminar, incluso si ocurre un error.
+ */
 async function probarConexion() {
   try {
     const [turnos] = await pool.execute(
