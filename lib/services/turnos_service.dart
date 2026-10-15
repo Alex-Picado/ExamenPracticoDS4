@@ -41,15 +41,12 @@ class TurnosService {
     }
   }
 
-
   /// Solicita al servidor que llame al primer turno pendiente.
   ///
   /// Devuelve null cuando no quedan turnos pendientes.
   /// El servidor selecciona y bloquea el turno para evitar duplicaciones.
   Future<Turno?> llamarSiguiente() async {
-    final url = Uri.parse(
-      '${ApiConfig.baseUrl}/api/turnos/siguiente',
-    );
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/turnos/siguiente');
 
     final respuesta = await _cliente
         .post(url)
@@ -66,6 +63,31 @@ class TurnosService {
     final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
 
     return Turno.fromJson(datos);
+  }
+
+  /// Marca como atendido un turno que previamente fue llamado.
+  ///
+  /// Devuelve false si el turno ya cambió de estado o dejó de existir.
+  Future<bool> atenderTurno(int id) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/turnos/$id');
+
+    final respuesta = await _cliente
+        .patch(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'estado': 'atendido'}),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (respuesta.statusCode == 404 || respuesta.statusCode == 409) {
+      return false;
+    }
+
+    if (respuesta.statusCode != 200) {
+      throw Exception('No se pudo completar la atención.');
+    }
+
+    return true;
   }
 
   void cerrar() {

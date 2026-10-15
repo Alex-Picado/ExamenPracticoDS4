@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../widgets/atender_turno_dialog.dart';
 import '../models/turno.dart';
 import '../services/tiempo_real_service.dart';
 import '../services/turnos_service.dart';
@@ -27,6 +28,7 @@ class _TurnosScreenState extends State<TurnosScreen> {
   late Future<List<Turno>> _consulta;
   bool _creandoTurno = false;
   bool _llamandoTurno = false;
+  bool _atendiendoTurno = false;
   late final TiempoRealService _tiempoReal;
   StreamSubscription<Map<String, dynamic>>? _suscripcion;
 
@@ -161,6 +163,88 @@ class _TurnosScreenState extends State<TurnosScreen> {
     }
   }
 
+  /// Consulta los turnos llamados y abre el formulario de atención.
+  ///
+  /// El backend vuelve a comprobar el estado antes de guardar el cambio.
+  Future<void> _abrirFormularioAtencion() async {
+    if (_atendiendoTurno) {
+      return;
+    }
+
+    setState(() {
+      _atendiendoTurno = true;
+    });
+
+    try {
+      final turnos = await _servicio.listarTurnos();
+
+      if (!mounted) {
+        return;
+      }
+
+      final llamados = turnos
+          .where((turno) => turno.estado == 'llamado')
+          .toList();
+
+      if (llamados.isEmpty) {
+        _mostrarMensaje('No hay turnos llamados para atender.');
+        return;
+      }
+
+      final id = await showDialog<int>(
+        context: context,
+        builder: (context) {
+          return AtenderTurnoDialog(turnosLlamados: llamados);
+        },
+      );
+
+      if (id == null || !mounted) {
+        return;
+      }
+
+      final atendido = await _servicio.atenderTurno(id);
+
+      _cargarTurnos();
+
+      if (atendido) {
+        _mostrarMensaje('Turno $id atendido.');
+      } else {
+        _mostrarMensaje(
+          'El turno ya cambió de estado o no existe. Revisa la lista.',
+        );
+      }
+    } catch (_) {
+      _cargarTurnos();
+
+      _mostrarMensaje(
+        'No se pudo confirmar la atención. Revisa la lista antes de reintentar.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _atendiendoTurno = false;
+        });
+      }
+    }
+  }
+
+  /// Construye el botón y evita abrir varios formularios simultáneamente.
+  Widget _construirBotonAtender() {
+    if (_atendiendoTurno) {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.hourglass_empty),
+        label: const Text('Procesando...'),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: _abrirFormularioAtencion,
+      icon: const Icon(Icons.check_circle_outline),
+      label: const Text('Atender turno'),
+    );
+  }
+
   /// Muestra un aviso únicamente si la pantalla continúa abierta.
   void _mostrarMensaje(String mensaje) {
     if (!mounted) {
@@ -223,8 +307,12 @@ class _TurnosScreenState extends State<TurnosScreen> {
         title: const Text('Gestión de turnos'),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.only(right: 8),
             child: _construirBotonLlamar(),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: _construirBotonAtender(),
           ),
         ],
       ),
