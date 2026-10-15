@@ -1,30 +1,26 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:examen/main.dart';
+import 'package:examen/models/turno.dart';
+import 'package:examen/screens/turnos_screen.dart';
+import 'package:examen/services/turnos_service.dart';
+
+class _TurnosServiceVacio extends TurnosService {
+  @override
+  Future<List<Turno>> listarTurnos() async {
+    return [];
+  }
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Muestra un mensaje cuando no hay turnos', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: TurnosScreen(servicio: _TurnosServiceVacio())),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Gestión de turnos'), findsOneWidget);
+    expect(find.text('No hay turnos registrados.'), findsOneWidget);
   });
 }
