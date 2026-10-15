@@ -41,6 +41,33 @@ class TurnosService {
     }
   }
 
+
+  /// Solicita al servidor que llame al primer turno pendiente.
+  ///
+  /// Devuelve null cuando no quedan turnos pendientes.
+  /// El servidor selecciona y bloquea el turno para evitar duplicaciones.
+  Future<Turno?> llamarSiguiente() async {
+    final url = Uri.parse(
+      '${ApiConfig.baseUrl}/api/turnos/siguiente',
+    );
+
+    final respuesta = await _cliente
+        .post(url)
+        .timeout(const Duration(seconds: 10));
+
+    if (respuesta.statusCode == 404) {
+      return null;
+    }
+
+    if (respuesta.statusCode != 200) {
+      throw Exception('No se pudo llamar al siguiente turno.');
+    }
+
+    final datos = jsonDecode(respuesta.body) as Map<String, dynamic>;
+
+    return Turno.fromJson(datos);
+  }
+
   void cerrar() {
     _cliente.close();
   }

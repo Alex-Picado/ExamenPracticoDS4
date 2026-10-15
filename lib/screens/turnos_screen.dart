@@ -26,6 +26,7 @@ class _TurnosScreenState extends State<TurnosScreen> {
   late final TurnosService _servicio;
   late Future<List<Turno>> _consulta;
   bool _creandoTurno = false;
+  bool _llamandoTurno = false;
   late final TiempoRealService _tiempoReal;
   StreamSubscription<Map<String, dynamic>>? _suscripcion;
 
@@ -123,6 +124,70 @@ class _TurnosScreenState extends State<TurnosScreen> {
     }
   }
 
+  /// Solicita el siguiente turno y comunica el resultado al funcionario.
+  ///
+  /// Evita solicitudes repetidas mientras la llamada está en proceso.
+  Future<void> _llamarSiguiente() async {
+    if (_llamandoTurno) {
+      return;
+    }
+
+    setState(() {
+      _llamandoTurno = true;
+    });
+
+    try {
+      final turno = await _servicio.llamarSiguiente();
+
+      _cargarTurnos();
+
+      if (turno == null) {
+        _mostrarMensaje('No hay turnos pendientes.');
+      } else {
+        _mostrarMensaje('Se llamó al turno ${turno.id}.');
+      }
+    } catch (_) {
+      _cargarTurnos();
+
+      _mostrarMensaje(
+        'No se pudo confirmar la llamada. Revisa la lista antes de reintentar.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _llamandoTurno = false;
+        });
+      }
+    }
+  }
+
+  /// Muestra un aviso únicamente si la pantalla continúa abierta.
+  void _mostrarMensaje(String mensaje) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(mensaje)));
+  }
+
+  /// Construye el botón y lo deshabilita mientras se procesa la llamada.
+  Widget _construirBotonLlamar() {
+    if (_llamandoTurno) {
+      return FilledButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.hourglass_empty),
+        label: const Text('Llamando...'),
+      );
+    }
+
+    return FilledButton.icon(
+      onPressed: _llamarSiguiente,
+      icon: const Icon(Icons.campaign),
+      label: const Text('Llamar siguiente'),
+    );
+  }
+
   /// Construye el botón según el estado de la solicitud de registro.
   Widget _construirBotonRegistro() {
     if (_creandoTurno) {
@@ -154,7 +219,15 @@ class _TurnosScreenState extends State<TurnosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestión de turnos')),
+      appBar: AppBar(
+        title: const Text('Gestión de turnos'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: _construirBotonLlamar(),
+          ),
+        ],
+      ),
       floatingActionButton: _construirBotonRegistro(),
       body: FutureBuilder<List<Turno>>(
         future: _consulta,
