@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "test:db": "node src/test-db.js",
-    "test:ws": "node src/test-ws.js"
+    "test:ws": "node src/test-ws.js",
+    "test:concurrencia": "node src/test-concurrencia.js"
   },
   "keywords": [],
   "author": "",
