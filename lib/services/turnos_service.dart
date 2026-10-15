@@ -29,6 +29,18 @@ class TurnosService {
     return turnos;
   }
 
+  Future<void> crearTurno() async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/turnos');
+
+    final respuesta = await _cliente
+        .post(url)
+        .timeout(const Duration(seconds: 10));
+
+    if (respuesta.statusCode != 201) {
+      throw Exception('No se pudo registrar el turno.');
+    }
+  }
+
   void cerrar() {
     _cliente.close();
   }

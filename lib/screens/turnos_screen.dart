@@ -15,6 +15,7 @@ class TurnosScreen extends StatefulWidget {
 class _TurnosScreenState extends State<TurnosScreen> {
   late final TurnosService _servicio;
   late Future<List<Turno>> _consulta;
+  bool _creandoTurno = false;
 
   @override
   void initState() {
@@ -29,6 +30,65 @@ class _TurnosScreenState extends State<TurnosScreen> {
     });
   }
 
+  Future<void> _registrarTurno() async {
+    if (_creandoTurno) {
+      return;
+    }
+
+    setState(() {
+      _creandoTurno = true;
+    });
+
+    try {
+      await _servicio.crearTurno();
+
+      if (!mounted) {
+        return;
+      }
+
+      _cargarTurnos();
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Turno registrado.')));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _cargarTurnos();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo confirmar el registro. Revisa la lista antes de reintentar.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _creandoTurno = false;
+        });
+      }
+    }
+  }
+
+  Widget _construirBotonRegistro() {
+    if (_creandoTurno) {
+      return const FloatingActionButton.extended(
+        onPressed: null,
+        icon: Icon(Icons.hourglass_empty),
+        label: Text('Registrando...'),
+      );
+    }
+
+    return FloatingActionButton.extended(
+      onPressed: _registrarTurno,
+      icon: const Icon(Icons.add),
+      label: const Text('Registrar turno'),
+    );
+  }
+
   @override
   void dispose() {
     _servicio.cerrar();
@@ -39,6 +99,7 @@ class _TurnosScreenState extends State<TurnosScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Gestión de turnos')),
+      floatingActionButton: _construirBotonRegistro(),
       body: FutureBuilder<List<Turno>>(
         future: _consulta,
         builder: (context, snapshot) {
@@ -69,7 +130,9 @@ class _TurnosScreenState extends State<TurnosScreen> {
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.only(bottom: 80),
             itemCount: turnos.length,
+
             itemBuilder: (context, index) {
               final turno = turnos[index];
 
